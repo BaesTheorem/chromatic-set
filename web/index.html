@@ -7,154 +7,252 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.49/Tone.js"></script>
 <style>
   :root {
-    --bg: #0d0d10;
-    --panel: #16161b;
-    --panel2: #1d1d24;
-    --line: #2c2c36;
-    --text: #e8e8ee;
-    --dim: #8a8a98;
-    --accent: #d8d8e2;
-    --hot: #f2c14e;
+    --bg: #161616;          /* app background */
+    --panel: #2c2c2c;       /* device / header bodies */
+    --panel2: #353535;      /* raised */
+    --rail: #1f1f1f;        /* track lanes */
+    --head: #333333;        /* track headers */
+    --line: #444444;
+    --hair: #3a3a3a;
+    --text: #d8d8d8;
+    --dim: #8c8c8c;
+    --dimmer: #6a6a6a;
+    --orange: #ff7a45;      /* Live accent */
+    --green: #5fce4f;       /* play */
+    --pad: #6c9eff;
+    --bass: #ffab33;
+    --melody: #ff8fa3;
+    --master: #b8b8b8;
   }
   * { box-sizing: border-box; }
+  html, body { height: 100%; }
   body {
-    margin: 0; background: var(--bg); color: var(--text);
-    font: 14px/1.5 -apple-system, BlinkMacSystemFont, "SF Pro Text", system-ui, sans-serif;
-    -webkit-font-smoothing: antialiased;
+    margin: 0; background: var(--bg); color: var(--text); overflow: hidden;
+    font: 11px/1.45 "Helvetica Neue", -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+    -webkit-font-smoothing: antialiased; user-select: none;
   }
-  header {
-    padding: 18px 24px; border-bottom: 1px solid var(--line);
-    display: flex; align-items: baseline; gap: 14px;
-  }
-  header h1 { margin: 0; font-size: 18px; font-weight: 600; letter-spacing: .04em; }
-  header .sub { color: var(--dim); font-size: 12px; }
-  .wrap { display: grid; grid-template-columns: 320px 1fr; gap: 0; min-height: calc(100vh - 59px); }
-  .left { border-right: 1px solid var(--line); padding: 20px; }
-  .right { padding: 20px 24px; }
+  .mono { font-family: ui-monospace, "SF Mono", Menlo, monospace; }
+  .up { text-transform: uppercase; letter-spacing: .09em; }
 
+  #app { display: grid; grid-template-rows: 38px 1fr 232px; height: 100vh; }
+
+  /* ---------------- control bar ---------------- */
+  .controlbar {
+    display: flex; align-items: stretch; background: var(--panel);
+    border-bottom: 1px solid #000; height: 38px;
+  }
+  .cb-group { display: flex; align-items: center; gap: 10px; padding: 0 12px; border-right: 1px solid #000; }
+  .logo { font-weight: 700; letter-spacing: .14em; font-size: 12px; color: var(--orange); }
+  .field { display: flex; flex-direction: column; justify-content: center; line-height: 1; }
+  .field .lbl { font-size: 8px; color: var(--dimmer); letter-spacing: .1em; text-transform: uppercase; margin-bottom: 3px; }
+  .field .v { font-size: 13px; color: var(--text); font-variant-numeric: tabular-nums; }
+  .field .v.orange { color: var(--orange); }
+  .tbtn {
+    width: 30px; height: 24px; background: var(--panel2); border: 1px solid #1c1c1c;
+    color: var(--text); cursor: pointer; display: flex; align-items: center; justify-content: center;
+    border-radius: 2px;
+  }
+  .tbtn:hover { background: #404040; }
+  .tbtn svg { width: 12px; height: 12px; fill: currentColor; }
+  .tbtn.play.on { color: var(--green); }
+  .tbtn.loop.on { color: var(--orange); border-color: var(--orange); }
+  .pos { font-size: 15px; color: var(--text); min-width: 74px; text-align: center; }
+  .cb-spacer { flex: 1; border-right: 0; }
+  .switch { display: flex; border: 1px solid #1c1c1c; border-radius: 2px; overflow: hidden; }
+  .switch button { background: var(--panel2); border: 0; color: var(--dim); padding: 5px 11px; cursor: pointer; font-size: 10px; }
+  .switch button.on { background: var(--orange); color: #1a1a1a; font-weight: 600; }
+  .dlbtn { background: var(--panel2); border: 1px solid #1c1c1c; color: var(--text); padding: 6px 12px; cursor: pointer; text-decoration: none; border-radius: 2px; font-size: 10px; }
+  .dlbtn:hover { background: #404040; }
+  .dlbtn.disabled { opacity: .4; pointer-events: none; }
+
+  /* ---------------- main: browser + arrangement ---------------- */
+  .main { display: grid; grid-template-columns: 188px 1fr; min-height: 0; }
+  .browser { background: var(--panel); border-right: 1px solid #000; padding: 10px; overflow: auto; }
+  .browser .sec { font-size: 8px; color: var(--orange); letter-spacing: .12em; text-transform: uppercase; margin: 6px 0 8px; }
   .drop {
-    border: 1px solid var(--line); background: var(--panel);
-    padding: 26px 16px; text-align: center; color: var(--dim);
-    cursor: pointer; user-select: none;
+    border: 1px dashed var(--line); background: var(--rail); padding: 16px 8px; text-align: center;
+    color: var(--dim); cursor: pointer; border-radius: 2px; font-size: 10px;
   }
-  .drop.over { border-color: var(--hot); color: var(--text); }
-  .drop strong { color: var(--text); }
-  #thumb { width: 100%; margin-top: 14px; display: none; border: 1px solid var(--line); }
-
-  .ctl { margin-top: 18px; }
-  .ctl h3 { margin: 0 0 10px; font-size: 11px; letter-spacing: .12em; text-transform: uppercase; color: var(--dim); }
-  .row { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 12px; }
-  .row label { color: var(--dim); font-size: 13px; }
-  .row .val { font-variant-numeric: tabular-nums; color: var(--text); min-width: 46px; text-align: right; }
-  input[type=range] { -webkit-appearance: none; appearance: none; width: 130px; height: 2px; background: var(--line); outline: none; }
-  input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; width: 12px; height: 12px; background: var(--accent); cursor: pointer; }
-  .seg { display: flex; border: 1px solid var(--line); }
-  .seg button { flex: 1; background: var(--panel); color: var(--dim); border: 0; padding: 7px 0; cursor: pointer; font-size: 12px; }
-  .seg button.on { background: var(--panel2); color: var(--text); }
-
-  button.primary {
-    width: 100%; margin-top: 18px; padding: 11px; background: var(--accent); color: #111;
-    border: 0; font-weight: 600; cursor: pointer; letter-spacing: .03em;
+  .drop.over { border-color: var(--orange); color: var(--text); }
+  .drop strong { color: var(--text); display: block; margin-bottom: 2px; }
+  #thumb { width: 100%; margin-top: 8px; display: none; border: 1px solid #000; }
+  .browser .row { display: flex; justify-content: space-between; padding: 4px 2px; border-bottom: 1px solid var(--hair); color: var(--dim); }
+  .browser .row b { color: var(--text); font-weight: 500; }
+  .composebtn {
+    width: 100%; margin-top: 12px; padding: 9px; background: var(--orange); color: #1a1a1a;
+    border: 0; font-weight: 700; cursor: pointer; border-radius: 2px; letter-spacing: .05em; text-transform: uppercase; font-size: 10px;
   }
-  button.primary:disabled { opacity: .4; cursor: default; }
-  .ghost { background: var(--panel2); color: var(--text); border: 1px solid var(--line); padding: 8px 14px; cursor: pointer; }
-  .ghost:disabled { opacity: .4; cursor: default; }
+  .composebtn:disabled { opacity: .4; cursor: default; }
+  #status { color: var(--dimmer); font-size: 9px; margin-top: 8px; min-height: 12px; }
 
-  .cards { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
-  .card { background: var(--panel); border: 1px solid var(--line); padding: 16px; }
-  .card h3 { margin: 0 0 12px; font-size: 11px; letter-spacing: .12em; text-transform: uppercase; color: var(--dim); }
-  .big { font-size: 26px; font-weight: 600; font-variant-numeric: tabular-nums; }
-  .kv { display: flex; justify-content: space-between; padding: 4px 0; border-bottom: 1px solid var(--line); }
-  .kv:last-child { border-bottom: 0; }
-  .kv span:first-child { color: var(--dim); }
-  .mono { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
+  /* arrangement */
+  .arrangement { background: var(--bg); display: flex; flex-direction: column; min-width: 0; }
+  .arr-top { display: flex; height: 20px; border-bottom: 1px solid #000; background: var(--panel); }
+  .ruler-spacer { width: 150px; border-right: 1px solid #000; flex: none; }
+  #ruler { flex: 1; display: block; }
+  .arr-body { position: relative; flex: 1; overflow: hidden; }
+  .tracks { position: absolute; inset: 0; display: flex; flex-direction: column; }
+  .track { display: flex; flex: 1; min-height: 0; border-bottom: 1px solid #000; }
+  .track-head {
+    width: 150px; flex: none; background: var(--head); border-right: 1px solid #000;
+    padding: 7px 9px; display: flex; flex-direction: column; gap: 5px; position: relative;
+  }
+  .track-head .tname { font-size: 10px; font-weight: 600; letter-spacing: .03em; }
+  .track-head .trow { display: flex; align-items: center; gap: 6px; }
+  .track-head .dot { width: 8px; height: 8px; border-radius: 1px; flex: none; }
+  .track-head .badge { font-size: 8px; color: var(--dimmer); }
+  .track-color { position: absolute; left: 0; top: 0; bottom: 0; width: 3px; }
+  .meter { height: 4px; background: #111; border: 1px solid #000; border-radius: 1px; overflow: hidden; }
+  .meter > i { display: block; height: 100%; width: 0%; transition: width .06s linear; }
+  .track-lane { flex: 1; position: relative; background: var(--rail); min-width: 0; }
+  .track-lane canvas { position: absolute; inset: 0; width: 100%; height: 100%; }
+  #playhead { position: absolute; top: 0; bottom: 0; width: 1px; background: var(--orange); left: 150px; pointer-events: none; box-shadow: 0 0 4px rgba(255,122,69,.6); display: none; }
+  .arr-empty { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; color: var(--dimmer); font-size: 11px; padding: 0 40px; text-align: center; }
 
-  .transport { display: flex; align-items: center; gap: 12px; margin: 4px 0 18px; }
-  #playhead-time { color: var(--dim); font-variant-numeric: tabular-nums; }
+  /* ---------------- device chain ---------------- */
+  .devices { background: var(--panel); border-top: 1px solid #000; display: flex; gap: 0; overflow-x: auto; }
+  .device { border-right: 1px solid #000; display: flex; flex-direction: column; flex: none; }
+  .device .dtitle {
+    height: 18px; background: var(--panel2); border-bottom: 1px solid #000; display: flex; align-items: center;
+    gap: 6px; padding: 0 8px; font-size: 8px; letter-spacing: .1em; text-transform: uppercase; color: var(--dim);
+  }
+  .device .dtitle .led { width: 7px; height: 7px; border-radius: 50%; background: var(--green); flex: none; box-shadow: 0 0 4px var(--green); }
+  .device .dbody { flex: 1; padding: 12px; display: flex; gap: 14px; align-items: center; }
 
-  canvas { display: block; image-rendering: pixelated; }
-  #clockwrap { display: flex; gap: 18px; align-items: center; }
-  #roll { width: 100%; height: 150px; background: var(--panel); border: 1px solid var(--line); margin-top: 16px; }
-  #clock { background: var(--panel); border: 1px solid var(--line); }
-  #curset { font-size: 13px; color: var(--dim); }
-  #curset b { color: var(--hot); }
-  #status { color: var(--dim); font-size: 12px; margin-top: 10px; min-height: 16px; }
-  #preview { border: 1px solid var(--line); width: 120px; height: 120px; image-rendering: pixelated; }
-  .hint { color: var(--dim); font-size: 11px; margin-top: -4px; margin-bottom: 12px; }
-  .placeholder { color: var(--dim); padding: 60px 20px; text-align: center; border: 1px dashed var(--line); }
+  /* analyzer device */
+  .analyzer { min-width: 250px; }
+  .analyzer .forte { font-size: 30px; font-weight: 700; color: var(--orange); line-height: 1; }
+  .analyzer .nick { color: var(--text); font-size: 11px; min-height: 14px; margin-top: 4px; }
+  .analyzer .grid2 { display: grid; grid-template-columns: auto auto; gap: 2px 18px; align-self: stretch; align-content: center; }
+  .analyzer .kv { display: contents; }
+  .analyzer .kv .k { color: var(--dimmer); font-size: 9px; text-transform: uppercase; letter-spacing: .06em; }
+  .analyzer .kv .val { color: var(--text); text-align: right; }
+
+  /* clock device */
+  .clockdev { min-width: 210px; }
+  #clock { background: var(--rail); border: 1px solid #000; border-radius: 2px; }
+  .clockdev .curset { font-size: 9px; color: var(--dim); }
+  .clockdev .curset b { color: var(--orange); font-size: 12px; }
+  .clockdev .preview { width: 84px; height: 84px; image-rendering: pixelated; border: 1px solid #000; }
+
+  /* macro device */
+  .macros { min-width: 360px; }
+  .knobrow { display: flex; gap: 16px; }
+  .knob { width: 52px; text-align: center; }
+  .knob canvas { cursor: ns-resize; display: block; margin: 0 auto; }
+  .knob .kname { font-size: 8px; color: var(--dimmer); text-transform: uppercase; letter-spacing: .05em; margin-top: 4px; }
+  .knob .kval { font-size: 10px; color: var(--text); font-variant-numeric: tabular-nums; }
+  .macros .modecol { display: flex; flex-direction: column; gap: 8px; justify-content: center; }
+  .macros .modecol .lbl8 { font-size: 8px; color: var(--dimmer); text-transform: uppercase; letter-spacing: .1em; }
+
+  ::-webkit-scrollbar { height: 9px; width: 9px; }
+  ::-webkit-scrollbar-thumb { background: #4a4a4a; border-radius: 0; }
+  ::-webkit-scrollbar-track { background: var(--bg); }
 </style>
 </head>
 <body>
-<header>
-  <h1>CHROMATIC SET</h1>
-  <span class="sub">an image's pixel color field, read as pitch-class sets, composed into ~2 minutes</span>
-</header>
+<div id="app">
 
-<div class="wrap">
-  <!-- LEFT: controls -->
-  <div class="left">
-    <div class="drop" id="drop">
-      <strong>Drop an image</strong><br>or click to choose
-      <input type="file" id="file" accept="image/*" style="display:none">
+  <!-- ========== CONTROL BAR ========== -->
+  <div class="controlbar">
+    <div class="cb-group"><span class="logo">CHROMATIC SET</span></div>
+    <div class="cb-group">
+      <div class="field"><span class="lbl">Tempo</span><span class="v mono" id="bpm">120.00</span></div>
+      <div class="field"><span class="lbl">Sig</span><span class="v mono">4 / 4</span></div>
+      <div class="field"><span class="lbl">Key</span><span class="v mono orange" id="keyfield">—</span></div>
     </div>
-    <img id="thumb">
-
-    <div class="ctl">
-      <h3>Character</h3>
-      <div class="seg" id="mode">
-        <button data-mode="faithful" class="on">Faithful (atonal)</button>
+    <div class="cb-group">
+      <button class="tbtn play" id="play" title="Play/Pause"><svg viewBox="0 0 12 12"><path d="M2 1 L11 6 L2 11 Z"/></svg></button>
+      <button class="tbtn" id="stop" title="Stop"><svg viewBox="0 0 12 12"><rect x="2" y="2" width="8" height="8"/></svg></button>
+      <button class="tbtn loop" id="loop" title="Loop"><svg viewBox="0 0 12 12"><path d="M3 3 h5 v-2 l3 3 -3 3 v-2 H4 v2 H3 Z M9 9 H4 v2 L1 8 4 5 v2 h5 v-2 h0 Z"/></svg></button>
+      <div class="field"><span class="lbl">Position</span><span class="pos mono" id="pos">1.1.1</span></div>
+      <div class="field"><span class="lbl">Time</span><span class="v mono" id="time">0:00 / 0:00</span></div>
+    </div>
+    <div class="cb-group cb-spacer"></div>
+    <div class="cb-group">
+      <span class="field"><span class="lbl">Engine</span></span>
+      <div class="switch" id="mode">
+        <button data-mode="faithful" class="on">Faithful</button>
         <button data-mode="tonal">Tonal</button>
       </div>
-      <div class="hint">Faithful honors strict pitch-class sets. Tonal snaps to a scale.</div>
-
-      <div class="row"><label>Length</label><input type="range" id="duration" min="30" max="240" step="10" value="120"><span class="val" id="duration_v">120s</span></div>
-      <div class="row"><label>Events / sec</label><input type="range" id="eps" min="1" max="8" step="0.5" value="4"><span class="val" id="eps_v">4</span></div>
-      <div class="row"><label>Neighbor blend</label><input type="range" id="blur" min="0" max="6" step="0.5" value="1.5"><span class="val" id="blur_v">1.5</span></div>
-      <div class="row"><label>Detail (grid)</label><input type="range" id="detail" min="5" max="9" step="1" value="8"><span class="val" id="detail_v">256</span></div>
-      <div class="row"><label>Set threshold</label><input type="range" id="threshold" min="0" max="0.12" step="0.01" value="0.03"><span class="val" id="threshold_v">3%</span></div>
+      <a class="dlbtn disabled up" id="dl" href="#" download>Export MIDI</a>
     </div>
-
-    <button class="primary" id="go" disabled>Compose</button>
-    <div id="status"></div>
   </div>
 
-  <!-- RIGHT: results -->
-  <div class="right" id="results">
-    <div class="placeholder" id="empty">Upload an image and press Compose. Every pixel pools with its neighbors along a Hilbert curve, becomes a pitch-class set, and the sequence of sets is the piece.</div>
-
-    <div id="output" style="display:none">
-      <div class="transport">
-        <button class="primary" id="play" style="width:auto;margin:0;padding:9px 22px">Play</button>
-        <button class="ghost" id="loop">Loop: off</button>
-        <a id="dl" class="ghost" href="#" download>Download MIDI</a>
-        <span id="playhead-time">0:00 / 0:00</span>
+  <!-- ========== MAIN ========== -->
+  <div class="main">
+    <!-- browser -->
+    <div class="browser">
+      <div class="sec">Sample</div>
+      <div class="drop" id="drop">
+        <strong>Drop image</strong>or click to load
+        <input type="file" id="file" accept="image/*" style="display:none">
       </div>
+      <img id="thumb">
+      <div class="sec" style="margin-top:14px">Source</div>
+      <div class="row"><span>pixels</span><b id="i_px">—</b></div>
+      <div class="row"><span>grid</span><b id="i_grid">—</b></div>
+      <div class="row"><span>sets</span><b id="i_sets">—</b></div>
+      <div class="row"><span>per-pixel</span><b id="i_ppx">—</b></div>
+      <button class="composebtn" id="go" disabled>Compose</button>
+      <div id="status"></div>
+    </div>
 
-      <canvas id="roll"></canvas>
-
-      <div class="cards" style="margin-top:18px">
-        <div class="card">
-          <h3>Whole-image set</h3>
-          <div class="big mono" id="g_forte">—</div>
-          <div id="g_nick" style="color:var(--hot);margin:4px 0 12px;min-height:18px"></div>
-          <div class="kv"><span>Pitches</span><span class="mono" id="g_names"></span></div>
-          <div class="kv"><span>Prime form</span><span class="mono" id="g_prime"></span></div>
-          <div class="kv"><span>Normal order</span><span class="mono" id="g_normal"></span></div>
-          <div class="kv"><span>Interval vector</span><span class="mono" id="g_icv"></span></div>
-          <div class="kv"><span>Cardinality</span><span class="mono" id="g_card"></span></div>
+    <!-- arrangement -->
+    <div class="arrangement">
+      <div class="arr-top">
+        <div class="ruler-spacer"></div>
+        <canvas id="ruler"></canvas>
+      </div>
+      <div class="arr-body" id="arrbody">
+        <div class="tracks" id="tracks">
+          <!-- track template filled by JS -->
         </div>
-        <div class="card">
-          <h3>Now playing</h3>
-          <div id="clockwrap">
-            <canvas id="clock" width="180" height="180"></canvas>
-            <div>
-              <div id="curset" style="margin-bottom:12px">set: <b id="cur_pcs">—</b></div>
-              <div class="kv"><span>Tonic</span><span class="mono" id="m_tonic"></span></div>
-              <div class="kv"><span>Events</span><span class="mono" id="m_events"></span></div>
-              <div class="kv"><span>Per-pixel</span><span class="mono" id="m_ppx"></span></div>
-              <div class="kv"><span>Pooled field</span><span></span></div>
-              <img id="preview" alt="">
-            </div>
+        <div id="playhead"></div>
+        <div class="arr-empty" id="arrEmpty">Load an image and hit Compose. The pixel field becomes pitch-class sets laid out as three tracks: Pad, Bass, Melody.</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ========== DEVICE CHAIN ========== -->
+  <div class="devices">
+    <div class="device analyzer">
+      <div class="dtitle"><span class="led"></span>Set Analyzer</div>
+      <div class="dbody">
+        <div>
+          <div class="forte mono" id="g_forte">—</div>
+          <div class="nick" id="g_nick"></div>
+        </div>
+        <div class="grid2">
+          <div class="kv"><span class="k">pitches</span><span class="val mono" id="g_names">—</span></div>
+          <div class="kv"><span class="k">prime</span><span class="val mono" id="g_prime">—</span></div>
+          <div class="kv"><span class="k">normal</span><span class="val mono" id="g_normal">—</span></div>
+          <div class="kv"><span class="k">vector</span><span class="val mono" id="g_icv">—</span></div>
+          <div class="kv"><span class="k">card</span><span class="val mono" id="g_card">—</span></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="device clockdev">
+      <div class="dtitle"><span class="led"></span>Chromatic Clock</div>
+      <div class="dbody">
+        <canvas id="clock" width="150" height="150"></canvas>
+        <div>
+          <div class="curset" style="margin-bottom:10px">set<br><b id="cur_pcs">—</b></div>
+          <img class="preview" id="preview" alt="">
+        </div>
+      </div>
+    </div>
+
+    <div class="device macros">
+      <div class="dtitle"><span class="led"></span>Macros</div>
+      <div class="dbody">
+        <div class="knobrow" id="knobs"></div>
+        <div class="modecol">
+          <span class="lbl8">Engine</span>
+          <div class="switch" id="mode2">
+            <button data-mode="faithful" class="on">Faithful</button>
+            <button data-mode="tonal">Tonal</button>
           </div>
         </div>
       </div>
@@ -164,176 +262,230 @@
 
 <script>
 const PC_NAMES = ["C","C#","D","D#","E","F","F#","G","G#","A","A#","B"];
-let DATA = null;          // last analyze response
-let synths = null;        // Tone synths
-let scheduled = false;
-let looping = false;
-let rollCtx, clockCtx;
+const VOICES = [
+  {key:"pad",    name:"1 Pad",    color:getCSS('--pad')},
+  {key:"bass",   name:"2 Bass",   color:getCSS('--bass')},
+  {key:"melody", name:"3 Melody", color:getCSS('--melody')},
+];
+let DATA=null, synths=null, scheduled=false, looping=false, mode='faithful';
+let laneCanvases={}, meterEls={};
 
-// ---- controls wiring ----
+function getCSS(v){ return getComputedStyle(document.documentElement).getPropertyValue(v).trim(); }
 const $ = id => document.getElementById(id);
-function bindRange(id, fmt){ const el=$(id), v=$(id+'_v'); const upd=()=>v.textContent=fmt(el.value); el.addEventListener('input',upd); upd(); }
-bindRange('duration', x=>x+'s');
-bindRange('eps', x=>x);
-bindRange('blur', x=>x);
-bindRange('detail', x=>Math.pow(2,+x));
-bindRange('threshold', x=>Math.round(x*100)+'%');
 
-let mode = 'faithful';
-$('mode').addEventListener('click', e=>{
-  const b=e.target.closest('button'); if(!b) return;
-  [...$('mode').children].forEach(c=>c.classList.remove('on'));
-  b.classList.add('on'); mode=b.dataset.mode;
-});
+/* ---------------- macro knobs ---------------- */
+const params = { duration:120, eps:4, blur:1.5, detail:8, threshold:0.03 };
+const KNOBS = [
+  {id:'duration', name:'Length', min:30, max:240, step:10, fmt:v=>v+'s'},
+  {id:'eps',      name:'Rate',   min:1,  max:8,   step:0.5, fmt:v=>v+'/s'},
+  {id:'blur',     name:'Blend',  min:0,  max:6,   step:0.5, fmt:v=>v.toFixed(1)},
+  {id:'detail',   name:'Detail', min:5,  max:9,   step:1,   fmt:v=>Math.pow(2,v)},
+  {id:'threshold',name:'Thresh', min:0,  max:0.12,step:0.01,fmt:v=>Math.round(v*100)+'%'},
+];
+function buildKnobs(){
+  const host=$('knobs');
+  KNOBS.forEach(k=>{
+    const wrap=document.createElement('div'); wrap.className='knob';
+    const cv=document.createElement('canvas'); cv.width=44; cv.height=44;
+    const name=document.createElement('div'); name.className='kname'; name.textContent=k.name;
+    const val=document.createElement('div'); val.className='kval mono';
+    wrap.append(cv,val,name); host.appendChild(wrap);
+    const draw=()=>{ drawKnob(cv, (params[k.id]-k.min)/(k.max-k.min)); val.textContent=k.fmt(params[k.id]); };
+    draw();
+    let dragging=false, startY=0, startV=0;
+    cv.addEventListener('mousedown',e=>{ dragging=true; startY=e.clientY; startV=params[k.id]; e.preventDefault(); });
+    window.addEventListener('mousemove',e=>{
+      if(!dragging) return;
+      const range=k.max-k.min;
+      let v=startV + ((startY-e.clientY)/120)*range;
+      v=Math.round(v/k.step)*k.step;
+      v=Math.max(k.min,Math.min(k.max,v));
+      params[k.id]=v; draw();
+    });
+    window.addEventListener('mouseup',()=>dragging=false);
+    cv.addEventListener('dblclick',()=>{ params[k.id]=KNOBS_DEFAULT[k.id]; draw(); });
+  });
+}
+const KNOBS_DEFAULT={duration:120,eps:4,blur:1.5,detail:8,threshold:0.03};
+function drawKnob(cv,frac){
+  const ctx=cv.getContext('2d'), w=cv.width, h=cv.height, cx=w/2, cy=h/2, r=15;
+  ctx.clearRect(0,0,w,h);
+  const a0=Math.PI*0.75, a1=Math.PI*2.25;
+  ctx.lineWidth=3; ctx.lineCap='round';
+  ctx.strokeStyle='#111'; ctx.beginPath(); ctx.arc(cx,cy,r,a0,a1); ctx.stroke();
+  ctx.strokeStyle=getCSS('--orange'); ctx.beginPath(); ctx.arc(cx,cy,r,a0,a0+(a1-a0)*frac); ctx.stroke();
+  const ang=a0+(a1-a0)*frac;
+  ctx.strokeStyle='#e8e8e8'; ctx.lineWidth=2; ctx.beginPath();
+  ctx.moveTo(cx+Math.cos(ang)*5, cy+Math.sin(ang)*5);
+  ctx.lineTo(cx+Math.cos(ang)*(r-2), cy+Math.sin(ang)*(r-2)); ctx.stroke();
+}
 
-// ---- file upload ----
-let fileBlob = null;
-const drop=$('drop'), fileInput=$('file');
-drop.addEventListener('click',()=>fileInput.click());
-drop.addEventListener('dragover',e=>{e.preventDefault();drop.classList.add('over');});
-drop.addEventListener('dragleave',()=>drop.classList.remove('over'));
-drop.addEventListener('drop',e=>{e.preventDefault();drop.classList.remove('over'); if(e.dataTransfer.files[0]) setFile(e.dataTransfer.files[0]);});
-fileInput.addEventListener('change',e=>{ if(e.target.files[0]) setFile(e.target.files[0]); });
+/* ---------------- mode switches (two, kept in sync) ---------------- */
+function wireMode(el){
+  el.addEventListener('click',e=>{
+    const b=e.target.closest('button'); if(!b) return;
+    mode=b.dataset.mode;
+    [$('mode'),$('mode2')].forEach(sw=>[...sw.children].forEach(c=>c.classList.toggle('on',c.dataset.mode===mode)));
+  });
+}
+
+/* ---------------- file upload ---------------- */
+let fileBlob=null;
 function setFile(f){
   fileBlob=f;
   const url=URL.createObjectURL(f);
   $('thumb').src=url; $('thumb').style.display='block';
-  $('go').disabled=false;
-  $('status').textContent=f.name+' ready';
+  $('go').disabled=false; $('status').textContent=f.name;
 }
 
-// ---- compose ----
-$('go').addEventListener('click', async ()=>{
+/* ---------------- compose ---------------- */
+async function compose(){
   if(!fileBlob) return;
   stop();
-  $('go').disabled=true; $('status').textContent='reading every pixel...';
+  $('go').disabled=true; $('status').textContent='reading every pixel…';
   const fd=new FormData();
-  fd.append('image', fileBlob);
-  fd.append('mode', mode);
-  fd.append('duration', $('duration').value);
-  fd.append('events_per_sec', $('eps').value);
-  fd.append('blur', $('blur').value);
-  fd.append('detail', $('detail').value);
-  fd.append('threshold', $('threshold').value);
-  fd.append('seed', '0');
+  fd.append('image',fileBlob); fd.append('mode',mode); fd.append('seed','0');
+  fd.append('duration',params.duration); fd.append('events_per_sec',params.eps);
+  fd.append('blur',params.blur); fd.append('detail',params.detail); fd.append('threshold',params.threshold);
   try{
     const t0=performance.now();
     const r=await fetch('/api/analyze',{method:'POST',body:fd});
     const j=await r.json();
     if(!j.ok){ $('status').textContent='error: '+(j.error||'?'); $('go').disabled=false; return; }
-    DATA=j;
-    render(j);
-    $('status').textContent=`${j.orig_pixels.toLocaleString()} px → ${j.grid_side}² grid → ${j.composition.n_events} sets · ${Math.round(performance.now()-t0)}ms`;
+    DATA=j; render(j);
+    $('status').textContent=`${j.orig_pixels.toLocaleString()} px → ${j.grid_side}² → ${j.composition.n_events} sets · ${Math.round(performance.now()-t0)}ms`;
   }catch(err){ $('status').textContent='error: '+err; }
   $('go').disabled=false;
-});
+}
 
+/* ---------------- render ---------------- */
 function render(j){
-  $('empty').style.display='none';
-  $('output').style.display='block';
-  const g=j.global;
-  $('g_forte').textContent='Forte '+g.forte;
+  $('arrEmpty').style.display='none';
+  const g=j.global, c=j.composition;
+  $('g_forte').textContent=g.forte;
   $('g_nick').textContent=g.nickname||'';
   $('g_names').textContent=g.pc_names.join(' ');
   $('g_prime').textContent='('+g.prime_form.join(',')+')';
   $('g_normal').textContent='('+g.normal_order.join(',')+')';
   $('g_icv').textContent='<'+g.icv.join(' ')+'>';
   $('g_card').textContent=g.cardinality;
-  $('m_tonic').textContent=j.composition.tonic_name;
-  $('m_events').textContent=j.composition.n_events;
-  $('m_ppx').textContent=j.per_pixel_ms<1 ? (j.per_pixel_ms*1000).toFixed(1)+'µs' : j.per_pixel_ms.toFixed(2)+'ms';
+  $('keyfield').textContent=c.tonic_name;
+  $('i_px').textContent=j.orig_pixels.toLocaleString();
+  $('i_grid').textContent=j.grid_side+'²';
+  $('i_sets').textContent=c.n_events;
+  $('i_ppx').textContent=j.per_pixel_ms<1 ? (j.per_pixel_ms*1000).toFixed(1)+'µs' : j.per_pixel_ms.toFixed(2)+'ms';
   $('preview').src='data:image/png;base64,'+j.preview_png;
-  $('dl').href=j.midi_url;
-  drawRoll(j);
-  drawClock([]);
+  $('dl').href=j.midi_url; $('dl').classList.remove('disabled');
   $('cur_pcs').textContent='—';
-  $('playhead-time').textContent='0:00 / '+fmt(j.composition.duration);
+  $('time').textContent='0:00 / '+fmt(c.duration);
+  buildTracks(j);
+  drawClock([]);
   buildSynths();
 }
 
-// ---- piano roll ----
+/* ---------------- arrangement: tracks ---------------- */
+function buildTracks(j){
+  const host=$('tracks'); host.innerHTML='';
+  laneCanvases={}; meterEls={};
+  const notes=j.composition.notes;
+  // per-voice pitch range
+  const ranges={};
+  VOICES.forEach(v=>{ ranges[v.key]={lo:127,hi:0}; });
+  notes.forEach(n=>{ const r=ranges[n.voice]; if(r){ r.lo=Math.min(r.lo,n.midi); r.hi=Math.max(r.hi,n.midi); } });
+
+  VOICES.forEach(v=>{
+    const track=document.createElement('div'); track.className='track';
+    const head=document.createElement('div'); head.className='track-head';
+    head.innerHTML=`
+      <div class="track-color" style="background:${v.color}"></div>
+      <div class="tname">${v.name}</div>
+      <div class="trow"><span class="dot" style="background:${v.color}"></span><span class="badge">MIDI</span></div>
+      <div class="meter"><i style="background:${v.color}"></i></div>`;
+    const lane=document.createElement('div'); lane.className='track-lane';
+    const cv=document.createElement('canvas'); lane.appendChild(cv);
+    track.append(head,lane); host.appendChild(track);
+    laneCanvases[v.key]={cv,range:ranges[v.key]};
+    meterEls[v.key]=head.querySelector('.meter > i');
+  });
+  drawRuler(j); drawAllLanes();
+}
 function setupCanvas(cv){
   const r=cv.getBoundingClientRect(), dpr=window.devicePixelRatio||1;
-  cv.width=r.width*dpr; cv.height=r.height*dpr;
+  cv.width=Math.max(1,r.width*dpr); cv.height=Math.max(1,r.height*dpr);
   const ctx=cv.getContext('2d'); ctx.setTransform(dpr,0,0,dpr,0,0);
-  return {ctx, w:r.width, h:r.height};
+  return {ctx,w:r.width,h:r.height};
 }
-let rollGeom=null;
-function drawRoll(j){
-  const cv=$('roll'); const {ctx,w,h}=setupCanvas(cv); rollGeom={w,h};
+function barLen(){ return 4*(60/120); } // seconds per bar at 120bpm 4/4 = 2s
+function drawRuler(j){
+  const cv=$('ruler'); const {ctx,w,h}=setupCanvas(cv);
   ctx.clearRect(0,0,w,h);
-  const notes=j.composition.notes, dur=j.composition.duration;
-  let lo=127, hi=0;
-  notes.forEach(n=>{lo=Math.min(lo,n.midi);hi=Math.max(hi,n.midi);});
-  lo-=1; hi+=1; const span=Math.max(hi-lo,1);
-  const colors={pad:'#3a6ea5', bass:'#a5573a', melody:'#f2c14e'};
-  notes.forEach(n=>{
-    const x=(n.t/dur)*w, wpx=Math.max((n.dur/dur)*w,1);
-    const y=h-((n.midi-lo)/span)*h, hpx=Math.max(h/span-1,2);
-    ctx.fillStyle=colors[n.voice]||'#888';
-    ctx.globalAlpha=n.voice==='pad'?0.5:0.9;
-    ctx.fillRect(x,y-hpx/2,wpx,hpx);
-  });
-  ctx.globalAlpha=1;
-  rollGeom.dur=dur;
+  const dur=j.composition.duration, bl=barLen(), bars=Math.ceil(dur/bl);
+  const pxPerBar=w/(dur/bl);
+  ctx.font='8px ui-monospace,monospace'; ctx.textBaseline='middle'; ctx.fillStyle='#8c8c8c';
+  let step=Math.max(1,Math.round(8/pxPerBar)); // label spacing
+  for(let b=0;b<=bars;b+=step){
+    const x=(b*bl/dur)*w;
+    ctx.fillStyle='#555'; ctx.fillRect(x,0,1,h);
+    ctx.fillStyle='#9a9a9a'; ctx.fillText((b+1), x+3, h/2);
+  }
 }
-function drawPlayhead(t){
-  if(!rollGeom||!DATA) { return; }
-  drawRoll(DATA);
-  const {ctx,w,h}=setupCanvas($('roll'));
-  // redraw kept by drawRoll above; just overlay line
-  const x=(t/DATA.composition.duration)*rollGeom.w;
-  rollCtx=$('roll').getContext('2d');
-  rollCtx.fillStyle='#fff'; rollCtx.globalAlpha=0.8;
-  rollCtx.fillRect(x,0,1,rollGeom.h); rollCtx.globalAlpha=1;
+function drawAllLanes(){
+  if(!DATA) return;
+  const dur=DATA.composition.duration, bl=barLen();
+  const byVoice={}; VOICES.forEach(v=>byVoice[v.key]=[]);
+  DATA.composition.notes.forEach(n=>{ if(byVoice[n.voice]) byVoice[n.voice].push(n); });
+  VOICES.forEach(v=>{
+    const ent=laneCanvases[v.key]; if(!ent) return;
+    const {ctx,w,h}=setupCanvas(ent.cv);
+    ctx.clearRect(0,0,w,h);
+    // bar gridlines
+    const bars=Math.ceil(dur/bl);
+    for(let b=0;b<=bars;b++){ const x=(b*bl/dur)*w; ctx.fillStyle=(b%4===0)?'#333':'#262626'; ctx.fillRect(x,0,1,h); }
+    let {lo,hi}=ent.range; lo-=1; hi+=1; const span=Math.max(hi-lo,1);
+    byVoice[v.key].forEach(n=>{
+      const x=(n.t/dur)*w, wpx=Math.max((n.dur/dur)*w,1.5);
+      const y=h-((n.midi-lo)/span)*h, hpx=Math.max(h/span-1,2.5);
+      ctx.fillStyle=v.color; ctx.globalAlpha=v.key==='pad'?0.7:0.95;
+      ctx.fillRect(x,y-hpx/2,wpx,hpx);
+    });
+    ctx.globalAlpha=1;
+  });
 }
 
-// ---- chromatic clock ----
-function hueForPc(pc){ return (pc/12)*360; }
-function drawClock(activePcs, weights){
-  const cv=$('clock'); const ctx=cv.getContext('2d');
-  const W=180,H=180,cx=90,cy=90,R=68;
+/* ---------------- chromatic clock ---------------- */
+function drawClock(activePcs){
+  const cv=$('clock'), ctx=cv.getContext('2d'); const W=150,H=150,cx=75,cy=75,R=55;
   ctx.clearRect(0,0,W,H);
-  for(let pc=0;pc<12;pc++){
-    const ang=(-90 + pc*30)*Math.PI/180;
-    const x=cx+Math.cos(ang)*R, y=cy+Math.sin(ang)*R;
-    const active=activePcs.includes(pc);
-    ctx.beginPath(); ctx.arc(x,y,active?11:6,0,7);
-    ctx.fillStyle=active?`hsl(${hueForPc(pc)},70%,55%)`:'#2c2c36';
-    ctx.fill();
-    if(active){ ctx.strokeStyle='#fff'; ctx.lineWidth=1.5; ctx.stroke(); }
-    ctx.fillStyle=active?'#fff':'#6a6a78';
-    ctx.font='10px ui-monospace,monospace'; ctx.textAlign='center'; ctx.textBaseline='middle';
-    const lx=cx+Math.cos(ang)*(R+16), ly=cy+Math.sin(ang)*(R+16);
-    ctx.fillText(PC_NAMES[pc],lx,ly);
-  }
-  // connect active set
   if(activePcs.length>1){
     ctx.beginPath();
-    activePcs.forEach((pc,i)=>{
-      const ang=(-90+pc*30)*Math.PI/180;
-      const x=cx+Math.cos(ang)*R, y=cy+Math.sin(ang)*R;
-      if(i===0) ctx.moveTo(x,y); else ctx.lineTo(x,y);
-    });
-    ctx.closePath(); ctx.strokeStyle='rgba(242,193,78,0.5)'; ctx.lineWidth=1; ctx.stroke();
+    activePcs.forEach((pc,i)=>{ const a=(-90+pc*30)*Math.PI/180; const x=cx+Math.cos(a)*R,y=cy+Math.sin(a)*R; i?ctx.lineTo(x,y):ctx.moveTo(x,y); });
+    ctx.closePath(); ctx.fillStyle='rgba(255,122,69,0.12)'; ctx.fill();
+    ctx.strokeStyle='rgba(255,122,69,0.5)'; ctx.lineWidth=1; ctx.stroke();
+  }
+  for(let pc=0;pc<12;pc++){
+    const a=(-90+pc*30)*Math.PI/180, x=cx+Math.cos(a)*R, y=cy+Math.sin(a)*R;
+    const on=activePcs.includes(pc);
+    ctx.beginPath(); ctx.arc(x,y,on?9:5,0,7);
+    ctx.fillStyle=on?`hsl(${(pc/12)*360},70%,55%)`:'#3a3a3a'; ctx.fill();
+    if(on){ ctx.strokeStyle='#fff'; ctx.lineWidth=1.5; ctx.stroke(); }
+    ctx.fillStyle=on?'#fff':'#6a6a6a'; ctx.font='9px ui-monospace,monospace'; ctx.textAlign='center'; ctx.textBaseline='middle';
+    ctx.fillText(PC_NAMES[pc], cx+Math.cos(a)*(R+13), cy+Math.sin(a)*(R+13));
   }
 }
 
-// ---- audio (Tone.js) ----
+/* ---------------- audio ---------------- */
 function buildSynths(){
   if(synths) return;
-  const reverb=new Tone.Reverb({decay:3.5,wet:0.35}).toDestination();
-  const pad=new Tone.PolySynth(Tone.Synth,{oscillator:{type:'sine'},envelope:{attack:0.4,decay:0.3,sustain:0.6,release:0.8},volume:-16}).connect(reverb);
-  const bass=new Tone.MonoSynth({oscillator:{type:'triangle'},envelope:{attack:0.05,decay:0.2,sustain:0.7,release:0.4},volume:-10}).connect(reverb);
-  const mel=new Tone.Synth({oscillator:{type:'triangle'},envelope:{attack:0.02,decay:0.15,sustain:0.4,release:0.3},volume:-8}).connect(reverb);
+  const reverb=new Tone.Reverb({decay:3.5,wet:0.32}).toDestination();
+  const pad=new Tone.PolySynth(Tone.Synth,{oscillator:{type:'sine'},envelope:{attack:0.4,decay:0.3,sustain:0.6,release:0.8},volume:-17}).connect(reverb);
+  const bass=new Tone.MonoSynth({oscillator:{type:'triangle'},envelope:{attack:0.05,decay:0.2,sustain:0.7,release:0.4},volume:-11}).connect(reverb);
+  const mel=new Tone.Synth({oscillator:{type:'triangle'},envelope:{attack:0.02,decay:0.15,sustain:0.4,release:0.3},volume:-9}).connect(reverb);
   synths={pad,bass,mel,reverb};
 }
 function midiToFreq(m){ return 440*Math.pow(2,(m-69)/12); }
-
 function schedule(){
   Tone.Transport.cancel(0);
-  const notes=DATA.composition.notes;
-  notes.forEach(n=>{
+  DATA.composition.notes.forEach(n=>{
     Tone.Transport.schedule(time=>{
       const f=midiToFreq(n.midi), v=n.vel/127;
       if(n.voice==='pad') synths.pad.triggerAttackRelease(f,n.dur,time,v*0.7);
@@ -341,48 +493,65 @@ function schedule(){
       else synths.mel.triggerAttackRelease(f,n.dur,time,v);
     }, n.t);
   });
-  // event-driven clock animation
   DATA.composition.events.forEach(e=>{
-    Tone.Transport.schedule(()=>{
-      Tone.Draw.schedule(()=>{
-        drawClock(e.pcs);
-        $('cur_pcs').textContent=e.pc_names.join(' ')||'—';
-      }, Tone.now());
-    }, e.t);
+    Tone.Transport.schedule(()=>Tone.Draw.schedule(()=>{
+      drawClock(e.pcs); $('cur_pcs').textContent=e.pc_names.join(' ')||'—';
+    },Tone.now()), e.t);
   });
-  Tone.Transport.scheduleRepeat(()=>{
-    Tone.Draw.schedule(()=>{
-      const t=Tone.Transport.seconds;
-      drawPlayhead(t);
-      $('playhead-time').textContent=fmt(t)+' / '+fmt(DATA.composition.duration);
-    }, Tone.now());
-  }, 0.05);
-  Tone.Transport.schedule(()=>{ if(!looping) Tone.Draw.schedule(()=>stop(), Tone.now()); }, DATA.composition.duration);
+  Tone.Transport.scheduleRepeat(()=>Tone.Draw.schedule(()=>tick(),Tone.now()), 0.04);
+  Tone.Transport.schedule(()=>{ if(!looping) Tone.Draw.schedule(()=>stop(),Tone.now()); }, DATA.composition.duration);
   scheduled=true;
 }
-
-$('play').addEventListener('click', async ()=>{
+function tick(){
+  const t=Tone.Transport.seconds, dur=DATA.composition.duration;
+  // playhead
+  const body=$('arrbody').getBoundingClientRect();
+  const laneW=body.width-150;
+  $('playhead').style.display='block';
+  $('playhead').style.left=(150 + Math.min(t/dur,1)*laneW)+'px';
+  // position bars.beats.16ths
+  const pos=String(Tone.Transport.position).split(':');
+  $('pos').textContent=`${(+pos[0])+1}.${(+pos[1])+1}.${Math.floor(+pos[2])+1}`;
+  $('time').textContent=fmt(t)+' / '+fmt(dur);
+  // meters: decay + light up on active note
+  VOICES.forEach(v=>{ const i=meterEls[v.key]; if(i){ let cur=parseFloat(i.dataset.l||0); cur=Math.max(0,cur-0.06); i.style.width=(cur*100)+'%'; i.dataset.l=cur; } });
+  DATA.composition.notes.forEach(n=>{
+    if(t>=n.t && t<n.t+n.dur){ const i=meterEls[n.voice]; if(i){ const l=n.vel/127; if(l>(+i.dataset.l||0)){ i.dataset.l=l; i.style.width=(l*100)+'%'; } } }
+  });
+}
+async function play(){
   if(!DATA) return;
   await Tone.start();
-  if(Tone.Transport.state==='started'){ Tone.Transport.pause(); $('play').textContent='Play'; return; }
+  if(Tone.Transport.state==='started'){ Tone.Transport.pause(); $('play').classList.remove('on'); return; }
   if(!scheduled) schedule();
-  Tone.Transport.start();
-  $('play').textContent='Pause';
-});
-$('loop').addEventListener('click',()=>{
-  looping=!looping;
-  Tone.Transport.loop=looping;
-  Tone.Transport.loopStart=0;
-  Tone.Transport.loopEnd=DATA?DATA.composition.duration:0;
-  $('loop').textContent='Loop: '+(looping?'on':'off');
-});
-function stop(){
-  Tone.Transport.stop(); Tone.Transport.position=0;
-  scheduled=false; $('play').textContent='Play';
+  Tone.Transport.start(); $('play').classList.add('on');
 }
+function stop(){
+  Tone.Transport.stop(); Tone.Transport.position=0; scheduled=false;
+  $('play').classList.remove('on'); $('playhead').style.display='none';
+  $('pos').textContent='1.1.1';
+  if(DATA) $('time').textContent='0:00 / '+fmt(DATA.composition.duration);
+  Object.values(meterEls).forEach(i=>{ i.style.width='0%'; i.dataset.l=0; });
+}
+function fmt(s){ s=Math.max(0,s); return Math.floor(s/60)+':'+String(Math.floor(s%60)).padStart(2,'0'); }
 
-function fmt(s){ s=Math.max(0,s); const m=Math.floor(s/60), ss=Math.floor(s%60); return m+':'+String(ss).padStart(2,'0'); }
-window.addEventListener('resize',()=>{ if(DATA) drawRoll(DATA); });
+/* ---------------- wire up ---------------- */
+buildKnobs();
+wireMode($('mode')); wireMode($('mode2'));
+$('drop').addEventListener('click',()=>$('file').click());
+$('drop').addEventListener('dragover',e=>{e.preventDefault();$('drop').classList.add('over');});
+$('drop').addEventListener('dragleave',()=>$('drop').classList.remove('over'));
+$('drop').addEventListener('drop',e=>{e.preventDefault();$('drop').classList.remove('over');if(e.dataTransfer.files[0])setFile(e.dataTransfer.files[0]);});
+$('file').addEventListener('change',e=>{ if(e.target.files[0]) setFile(e.target.files[0]); });
+$('go').addEventListener('click',compose);
+$('play').addEventListener('click',play);
+$('stop').addEventListener('click',stop);
+$('loop').addEventListener('click',()=>{
+  looping=!looping; Tone.Transport.loop=looping; Tone.Transport.loopStart=0;
+  Tone.Transport.loopEnd=DATA?DATA.composition.duration:0;
+  $('loop').classList.toggle('on',looping);
+});
+window.addEventListener('resize',()=>{ if(DATA){ drawRuler(DATA); drawAllLanes(); } });
 </script>
 </body>
 </html>
