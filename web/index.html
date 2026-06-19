@@ -175,7 +175,8 @@
         <button data-mode="faithful" class="on">Faithful</button>
         <button data-mode="tonal">Tonal</button>
       </div>
-      <a class="dlbtn disabled up" id="dl" href="#" download>Export MIDI</a>
+      <button class="dlbtn disabled up" id="dlwav">Export WAV</button>
+      <a class="dlbtn disabled up" id="dl" href="#" download title="Score for DAWs. Plays in Logic/Ableton/MuseScore, not in VLC (MIDI needs a SoundFont).">Export MIDI</a>
     </div>
   </div>
 
@@ -376,6 +377,7 @@ function render(j){
   $('i_ppx').textContent=j.per_pixel_ms<1 ? (j.per_pixel_ms*1000).toFixed(1)+'µs' : j.per_pixel_ms.toFixed(2)+'ms';
   $('preview').src='data:image/png;base64,'+j.preview_png;
   $('dl').href=j.midi_url; $('dl').classList.remove('disabled');
+  $('dlwav').classList.remove('disabled');
   $('cur_pcs').textContent='—';
   $('time').textContent='0:00 / '+fmt(c.duration);
   buildTracks(j);
@@ -476,13 +478,30 @@ function drawClock(activePcs){
 /* ---------------- audio ---------------- */
 function buildSynths(){
   if(synths) return;
-  const reverb=new Tone.Reverb({decay:3.5,wet:0.32}).toDestination();
+  const reverb=new Tone.Freeverb({roomSize:0.82,dampening:2600,wet:0.3}).toDestination();
   const pad=new Tone.PolySynth(Tone.Synth,{oscillator:{type:'sine'},envelope:{attack:0.4,decay:0.3,sustain:0.6,release:0.8},volume:-17}).connect(reverb);
   const bass=new Tone.MonoSynth({oscillator:{type:'triangle'},envelope:{attack:0.05,decay:0.2,sustain:0.7,release:0.4},volume:-11}).connect(reverb);
   const mel=new Tone.Synth({oscillator:{type:'triangle'},envelope:{attack:0.02,decay:0.15,sustain:0.4,release:0.3},volume:-9}).connect(reverb);
   synths={pad,bass,mel,reverb};
 }
 function midiToFreq(m){ return 440*Math.pow(2,(m-69)/12); }
+
+/* ---------------- WAV export (server-side numpy synth; plays anywhere, no SoundFont) ---------------- */
+async function exportWav(){
+  if(!DATA) return;
+  const btn=$('dlwav'); const label=btn.textContent;
+  btn.textContent='Rendering…'; btn.classList.add('disabled');
+  try{
+    const r=await fetch(DATA.wav_url||'/api/wav');
+    if(!r.ok) throw new Error('server '+r.status);
+    const blob=await r.blob();
+    const url=URL.createObjectURL(blob);
+    const a=document.createElement('a'); a.href=url; a.download='chromatic-set.wav';
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(()=>URL.revokeObjectURL(url),4000);
+  }catch(err){ $('status').textContent='WAV error: '+err; }
+  btn.textContent=label; btn.classList.remove('disabled');
+}
 function schedule(){
   Tone.Transport.cancel(0);
   DATA.composition.notes.forEach(n=>{
@@ -544,6 +563,7 @@ $('drop').addEventListener('dragleave',()=>$('drop').classList.remove('over'));
 $('drop').addEventListener('drop',e=>{e.preventDefault();$('drop').classList.remove('over');if(e.dataTransfer.files[0])setFile(e.dataTransfer.files[0]);});
 $('file').addEventListener('change',e=>{ if(e.target.files[0]) setFile(e.target.files[0]); });
 $('go').addEventListener('click',compose);
+$('dlwav').addEventListener('click',exportWav);
 $('play').addEventListener('click',play);
 $('stop').addEventListener('click',stop);
 $('loop').addEventListener('click',()=>{

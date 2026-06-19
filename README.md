@@ -49,8 +49,15 @@ Or build the launcher: `bash setup.sh` → `~/Desktop/Apps/Chromatic Set.app`.
 - **Detail (grid)** — Hilbert grid side `2^k`; bigger = finer harmonic detail.
 - **Set threshold** — minimum share of a window a pitch class needs to be kept.
 
-Output: in-browser playback (Tone.js), an animated chromatic clock + piano roll, and a
-**MIDI download** that opens in any DAW or notation app.
+Output: in-browser playback (Tone.js), an animated chromatic clock + piano roll, and two
+downloads:
+
+- **Export WAV** — rendered audio (server-side numpy synth). Plays in VLC, QuickTime, anything.
+  This is the one to use if you just want a file that plays.
+- **Export MIDI** — the score, for DAWs and notation apps (Logic, Ableton, MuseScore). Note: a
+  raw `.mid` will not play in general media players like VLC, because MIDI is a score, not audio;
+  players need a SoundFont to synthesize it (and VLC often crashes without one). Use the WAV for
+  listening, the MIDI for editing.
 
 ## Files
 

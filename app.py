@@ -687,6 +687,80 @@ def write_midi(notes, duration, path, ticks_per_beat=480, bpm=120):
 
 
 # ----------------------------------------------------------------------------
+# Audio render -> WAV (numpy additive synth; plays in any media player, no SoundFont)
+# ----------------------------------------------------------------------------
+import wave
+
+# per-voice harmonic series (amplitude of each partial) and ADSR + gain
+VOICE_TIMBRE = {
+    "pad":    {"harm": [1.0, 0.35, 0.15, 0.05], "adsr": (0.40, 0.30, 0.6, 0.8), "gain": 0.5},
+    "bass":   {"harm": [1.0, 0.0, 0.18, 0.0, 0.06], "adsr": (0.05, 0.20, 0.7, 0.4), "gain": 0.85},
+    "melody": {"harm": [1.0, 0.0, 0.28, 0.0, 0.12, 0.0, 0.06], "adsr": (0.02, 0.15, 0.45, 0.3), "gain": 0.7},
+}
+
+
+def _adsr_env(length, sr, a, d, s, r):
+    env = np.empty(length, np.float32)
+    A = min(int(a * sr), length)
+    R = min(int(r * sr), length - A)
+    D = min(int(d * sr), length - A - R)
+    S = length - A - D - R
+    i = 0
+    if A: env[i:i + A] = np.linspace(0.0, 1.0, A, endpoint=False); i += A
+    if D: env[i:i + D] = np.linspace(1.0, s, D, endpoint=False); i += D
+    if S: env[i:i + S] = s; i += S
+    if R: env[i:i + R] = np.linspace(s, 0.0, R, endpoint=True); i += R
+    if i < length: env[i:] = 0.0
+    return env
+
+
+def synth_wav(comp, path, sr=44100):
+    notes = comp["notes"]
+    duration = comp["duration"]
+    total = int((duration + 2.5) * sr)
+    buf = np.zeros(total, np.float32)
+    for n in notes:
+        f = 440.0 * 2 ** ((n["midi"] - 69) / 12.0)
+        start = int(n["t"] * sr)
+        length = int(max(n["dur"], 0.05) * sr)
+        if start >= total: continue
+        length = min(length, total - start)
+        if length <= 0: continue
+        tim = VOICE_TIMBRE.get(n["voice"], VOICE_TIMBRE["pad"])
+        t = np.arange(length, dtype=np.float32) / sr
+        wave_arr = np.zeros(length, np.float32)
+        for k, amp in enumerate(tim["harm"], start=1):
+            if amp == 0.0: continue
+            if f * k > sr * 0.45: break          # avoid aliasing
+            wave_arr += amp * np.sin(2 * np.pi * f * k * t)
+        env = _adsr_env(length, sr, *tim["adsr"])
+        amp = (n["vel"] / 127.0) * tim["gain"]
+        buf[start:start + length] += wave_arr * env * amp
+
+    # light stereo-ish space: a couple of attenuated echoes
+    echo = np.zeros_like(buf)
+    for delay, g in ((0.11, 0.22), (0.23, 0.12)):
+        ds = int(delay * sr)
+        if ds < total: echo[ds:] += buf[:total - ds] * g
+    buf = buf + echo
+
+    # normalize + gentle soft clip
+    peak = float(np.max(np.abs(buf))) or 1.0
+    buf = np.tanh(buf / peak * 1.1) * 0.92
+    pcm = (buf * 32767).astype("<i2")
+
+    with wave.open(path, "wb") as w:
+        w.setnchannels(1)
+        w.setsampwidth(2)
+        w.setframerate(sr)
+        w.writeframes(pcm.tobytes())
+
+
+# Last composition (for lazy WAV render on demand, so /api/analyze stays fast)
+LAST_COMPOSITION = None
+
+
+# ----------------------------------------------------------------------------
 # Routes
 # ----------------------------------------------------------------------------
 @app.route("/")
@@ -731,6 +805,10 @@ def api_analyze():
     midi_name = "chromatic-set.mid"
     write_midi(comp["notes"], duration, os.path.join(OUT_DIR, midi_name))
 
+    # stash for lazy WAV render (keeps compose fast; WAV built only when requested)
+    global LAST_COMPOSITION
+    LAST_COMPOSITION = comp
+
     # grid preview (small PNG, base64) so the user sees the pooled/blurred field
     preview = Image.fromarray(rgb, "RGB").resize((256, 256), Image.NEAREST)
     buf = io.BytesIO()
@@ -746,6 +824,7 @@ def api_analyze():
         "global": global_analysis,
         "composition": comp,
         "midi_url": f"/api/midi?name={midi_name}",
+        "wav_url": "/api/wav",
         "preview_png": preview_b64,
         "params": {
             "detail": k, "blur": blur, "duration": duration,
@@ -764,6 +843,16 @@ def api_midi():
         return jsonify({"error": "not found"}), 404
     return send_file(path, mimetype="audio/midi", as_attachment=True,
                      download_name="chromatic-set.mid")
+
+
+@app.route("/api/wav")
+def api_wav():
+    if LAST_COMPOSITION is None:
+        return jsonify({"error": "compose something first"}), 400
+    path = os.path.join(OUT_DIR, "chromatic-set.wav")
+    synth_wav(LAST_COMPOSITION, path)
+    return send_file(path, mimetype="audio/wav", as_attachment=True,
+                     download_name="chromatic-set.wav")
 
 
 if __name__ == "__main__":
