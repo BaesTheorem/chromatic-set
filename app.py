@@ -13,6 +13,11 @@ neighbors (box resize), bleeding into them (blur), and being smeared across the
 overlapping windows it falls in. Note rate is a musical dial, decoupled from
 pixel count; pixel count controls smoothness.
 """
+try:
+    import setproctitle
+    setproctitle.setproctitle("Chromatic Set")
+except ImportError:
+    pass  # cosmetic process name only; never block startup on it
 import io
 import os
 import json
